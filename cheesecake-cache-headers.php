@@ -21,26 +21,35 @@ add_action('wp', function() {
         return;
     }
 
-    $requested_etag = $_SERVER['HTTP_IF_NONE_MATCH']??'';
-    $current_etag =   cheesecake_get_current_etag();
+    $hash = cheesecake_get_current_state_hash();
+
+    // Set weak flag since content may not be byte-for-byte identical
+    $current_etag   = 'W/"' . $hash . '"';
+    $requested_etag = trim($_SERVER['HTTP_IF_NONE_MATCH']??'');
 
     if ($requested_etag === $current_etag) {
         status_header(304);
         exit;
     }
 
-    header('ETag: W/"' . $current_etag . '"');
+    header('ETag: ' . $current_etag);
 });
 
-function cheesecake_get_current_etag() {
-    $content_mod_date  = (int)get_post_time();
+function cheesecake_get_current_state_hash() {
+    $content_mod_date  = (int)get_post_modified_time();
     $last_comment_date = cheesecake_get_date_of_last_comment();
 
-    $theme_hash = 
+    $theme_hash = cheesecake_get_active_theme_state_hash();
 
     $plugin_hash = cheesecake_get_cached_plugin_hash();
 
-    return md5( "{$content_mod_date}_{$last_comment_date}_{$theme_version}_{$theme_settings_hash}_{$plugin_hash}" );
+    $menu_hash = cheesecake_get_menu_state_hash();
+
+    $state_string = "{$content_mod_date}_{$last_comment_date}_{$theme_hash}_{$plugin_hash}_{$menu_hash}";
+
+    // header('X-Etag-Debug: '. $state_string);
+
+    return md5( $state_string );
 }
 
 function cheesecake_get_date_of_last_comment() {
@@ -76,68 +85,55 @@ function cheesecake_get_active_plugins_version_hash() {
     return md5( $version_string );
 }
 
-$cheesecake_plugin_hash_transient = 'cheesecake_plugin_hash';
-
 function cheesecake_get_cached_plugin_hash() {
-    $hash = get_transient( $cheesecake_plugin_hash_transient );
+    $hash = get_transient( 'cheesecake_plugin_hash' );
 
     if ( false === $hash ) {
         $hash = cheesecake_get_active_plugins_version_hash();
 
-        set_transient( $cheesecake_plugin_hash_transient, $hash, 12 * HOUR_IN_SECONDS );
+        set_transient( 'cheesecake_plugin_hash' , $hash, 12 * HOUR_IN_SECONDS );
     }
 
     return $hash;
 }
 
 function cheesecake_clear_plugin_hash_cache() {
-    delete_transient( $cheesecake_plugin_hash_transient );
+    delete_transient( 'cheesecake_plugin_hash' );
 }
 
 function cheesecake_get_active_theme_state_hash() {
     $theme = wp_get_theme();
     $state = $theme->get( 'Name' ) . ':' . $theme->get( 'Version' );
 
-    $merged_data = WP_Theme_JSON_Resolver::get_merged_data();
-    $raw_data    = $merged_data->get_data();
+    $global_settings = wp_get_global_settings();
+    $state .= wp_json_encode( $global_settings );
 
-    wp_recursive_ksort( $raw_data );
-
-    $theme_json_string = wp_json_encode( $raw_data );
-    return md5( $theme_json_string . ':' . $state );
+    return md5( $state );
 }
 
-$cheesecake_theme_hash_transient = 'cheesecake_theme_hash';
+function cheesecake_get_menu_state_hash() {
+    $classic_menus = wp_get_nav_menus();
+    $block_menus   = get_posts( array( 'post_type' => 'wp_navigation', 'post_status' => 'publish' ) );
 
-function cheesecake_get_cached_theme_hash() {
-    $hash = get_transient( $cheesecake_theme_hash_transient );
+    $menu_string = '';
 
-    if ( false === $hash ) {
-        $hash = cheesecake_get_active_theme_state_hash();
-
-        set_transient( $cheesecake_theme_hash_transient, $hash, 12 * HOUR_IN_SECONDS );
+    foreach ( $classic_menus as $menu ) {
+        $menu_string .= $menu->term_id . ':' . $menu->count . '|';
     }
 
-    return $hash;
-}
+    foreach ( (array) $block_menus as $nav ) {
+        $menu_string .= 'block' . $nav->ID . $nav->post_modified_gmt;
+    }
 
-function cheesecake_clear_theme_hash_cache() {
-    delete_transient( $cheesecake_theme_hash_transient );
+    return md5( $menu_string );
 }
 
 add_action( 'update_option_active_plugins', 'cheesecake_clear_plugin_hash_cache' );
-
-add_action( 'save_post_wp_global_styles', 'cheesecake_clear_theme_hash_cache' );
-
-add_action( 'customize_save_after', 'cheesecake_clear_theme_hash_cache' );
 
 add_action( 'upgrader_process_complete', function( $upgrader_object, $options ) {
     if ( $options['action'] == 'update' ) {
         if ( $options['type'] == 'plugin' ) {
             cheesecake_clear_plugin_hash_cache();
-        }
-        if ( $options['type'] == 'theme' ) {
-            cheesecake_clear_theme_hash_cache();
         }
     }
 }, 10, 2 );
