@@ -101,6 +101,27 @@ function cheesecake_clear_plugin_hash_cache() {
     delete_transient( 'cheesecake_plugin_hash' );
 }
 
+function cheesecake_get_synced_patterns_fingerprint_data() {
+    $pattern_posts = get_posts( [
+        'post_type'      => 'wp_block',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'orderby'        => 'ID',
+        'order'          => 'ASC',
+        'suppress_filters' => true,
+    ] );
+
+    $patterns_data = [];
+    foreach ( $pattern_posts as $post ) {
+        $patterns_data[ $post->ID ] = [
+            'modified' => $post->post_modified_gmt,
+            'id'  => $post->ID,
+        ];
+    }
+
+    return $patterns_data;
+}
+
 function cheesecake_get_active_theme_state_hash() {
     $settings = wp_get_global_settings();
     $styles   = wp_get_global_styles();
@@ -108,11 +129,14 @@ function cheesecake_get_active_theme_state_hash() {
     $user_style_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme() );
     $user_customizations = ! empty( $user_style_post ) ? $user_style_post->post_content : '';
 
+    $synced_patterns = cheesecake_get_synced_patterns_fingerprint_data();
+
     $state = [
         'settings'          => $settings,
         'styles'            => $styles,
         'user_customizer'   => $user_customizations,
         'active_stylesheet' => get_stylesheet(),
+        'synced_patterns'   => $synced_patterns,
     ];
 
     return md5( json_encode( $state ) );
