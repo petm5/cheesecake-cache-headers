@@ -136,18 +136,24 @@ function cheesecake_get_files_mtime($files) {
     return $files_mtime;
 }
 
-function cheesecake_get_active_theme_state_hash() {
+function cheesecake_get_active_theme_state() {
     $settings = wp_get_global_settings();
     $styles = wp_get_global_styles();
     $custom_css = wp_get_custom_css();
 
     $theme = wp_get_theme();
 
-    $stylesheet_dir = $theme->get_stylesheet_directory();
-    $theme_files_mtime = cheesecake_get_files_mtime( [
-        $stylesheet_dir . '/theme.json',
-        $stylesheet_dir . '/style.css',
-    ] );
+    $theme_files = [
+        $theme->get_stylesheet_directory() . '/theme.json',
+        $theme->get_stylesheet_directory() . '/style.css',
+    ];
+
+    if ( $theme->parent() ) {
+        $theme_files[] = $theme->get_template_directory() . '/theme.json';
+        $theme_files[] = $theme->get_template_directory() . '/style.css';
+    }
+
+    $theme_files_mtime = cheesecake_get_files_mtime( $theme_files );
 
     $user_style_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( $theme );
     $user_customizations = ! empty( $user_style_post ) ? $user_style_post['post_content'] : '';
