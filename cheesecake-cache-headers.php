@@ -102,13 +102,20 @@ function cheesecake_clear_plugin_hash_cache() {
 }
 
 function cheesecake_get_active_theme_state_hash() {
-    $theme = wp_get_theme();
-    $state = $theme->get( 'Name' ) . ':' . $theme->get( 'Version' );
+    $settings = wp_get_global_settings();
+    $styles   = wp_get_global_styles();
 
-    $global_settings = wp_get_global_settings();
-    $state .= wp_json_encode( $global_settings );
+    $user_style_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme() );
+    $user_customizations = ! empty( $user_style_post ) ? $user_style_post->post_content : '';
 
-    return md5( $state );
+    $state = [
+        'settings'          => $settings,
+        'styles'            => $styles,
+        'user_customizer'   => $user_customizations,
+        'active_stylesheet' => get_stylesheet(),
+    ];
+
+    return md5( json_encode( $state ) );
 }
 
 function cheesecake_get_menu_state_hash() {
