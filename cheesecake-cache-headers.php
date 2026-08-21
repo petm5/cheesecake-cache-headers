@@ -70,15 +70,15 @@ function cheesecake_get_active_plugins_version_hash() {
 
     $all_plugins    = get_plugins();
     $active_plugins = get_option( 'active_plugins' );
-    $version_string = '';
+    $versions = [];
 
     foreach ( $active_plugins as $plugin_path ) {
         if ( isset( $all_plugins[ $plugin_path ] ) ) {
-            $version_string .= $plugin_path . ':' . $all_plugins[ $plugin_path ]['Version'] . '|';
+            $versions[$plugin_path] = $all_plugins[ $plugin_path ]['Version'];
         }
     }
 
-    return md5( $version_string );
+    return md5( serialize ( $versions ) );
 }
 
 function cheesecake_get_cached_plugin_hash() {
@@ -177,19 +177,19 @@ function cheesecake_get_active_theme_state() {
 
 function cheesecake_get_menu_state() {
     $classic_menus = wp_get_nav_menus();
+
     $block_menus   = get_posts( array( 'post_type' => 'wp_navigation', 'post_status' => 'publish' ) );
 
-    $menu_string = '';
-
-    foreach ( $classic_menus as $menu ) {
-        $menu_string .= $menu->term_id . ':' . $menu->count . '|';
-    }
+    $block_menu_items = [];
 
     foreach ( (array) $block_menus as $nav ) {
-        $menu_string .= 'block' . $nav->ID . $nav->post_modified_gmt;
+        $block_menu_items[ $nav->ID ] = $nav->post_modified_gmt;
     }
 
-    return $menu_string;
+    return [
+        'classic' => $classic_menus,
+        'block' => $block_menu_items,
+    ];
 }
 
 add_action( 'update_option_active_plugins', 'cheesecake_clear_plugin_hash_cache' );
