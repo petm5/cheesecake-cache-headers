@@ -42,10 +42,21 @@ function cheesecake_get_current_state_hash() {
         'theme_state'  => cheesecake_get_active_theme_state(),
         'plugin_state' => cheesecake_get_cached_plugin_hash(),
         'menu_state'   => cheesecake_get_menu_state(),
+        'identity'     => cheesecake_get_site_identity_state(),
         'core_version' => $GLOBALS['wp_version'],
     ];
 
     return md5( serialize( $state ) );
+}
+
+function cheesecake_get_site_identity_state() {
+    return [
+        'title'       => get_option( 'blogname' ),
+        'tagline'     => get_option( 'blogdescription' ),
+        'site_icon'   => get_option( 'site_icon' ),
+        'site_logo'   => get_option( 'site_logo' ),
+        'custom_logo' => get_theme_mod( 'custom_logo' ),
+    ];
 }
 
 function cheesecake_get_date_of_last_comment() {
