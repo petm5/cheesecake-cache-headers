@@ -14,8 +14,13 @@ add_action('wp', function() {
         return;
     }
 
-    header('Cache-Control: max-age=60');
     header('Vary: Cookie, Accept-Encoding');
+
+    if (is_user_logged_in()) {
+        return;
+    }
+
+    header('Cache-Control: max-age=60');
 
     if (!is_singular()) {
         return;
