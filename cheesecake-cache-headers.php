@@ -101,42 +101,73 @@ function cheesecake_clear_plugin_hash_cache() {
     delete_transient( 'cheesecake_plugin_hash' );
 }
 
-function cheesecake_get_synced_patterns_fingerprint_data() {
-    $pattern_posts = get_posts( [
-        'post_type'      => 'wp_block',
-        'post_status'    => 'publish',
-        'posts_per_page' => -1,
-        'orderby'        => 'ID',
-        'order'          => 'ASC',
-        'suppress_filters' => true,
-    ] );
+function cheesecake_get_cpts_fingerprint_data($cpt_types) {
+    $data = [];
 
-    $patterns_data = [];
-    foreach ( $pattern_posts as $post ) {
-        $patterns_data[ $post->ID ] = [
-            'modified' => $post->post_modified_gmt,
-            'id'  => $post->ID,
-        ];
+    foreach ( $cpt_types as $type) {
+        $posts = get_posts( [
+            'post_type'      => $type,
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'orderby'        => 'ID',
+            'order'          => 'ASC',
+            'suppress_filters' => true,
+        ] );
+
+        foreach ( $posts as $post ) {
+            $data[ $post->ID ] = [
+                'type' => $type,
+                'modified' => $post->post_modified_gmt,
+                'id'  => $post->ID,
+            ];
+        }
     }
 
-    return $patterns_data;
+    return $data;
+}
+
+function cheesecake_get_files_mtime($files) {
+    $files_mtime = [];
+
+    foreach ( $files as $file ) {
+        $files_mtime[$file] = file_exists( $file ) ? filemtime( $file ) : 0;
+    }
+
+    return $files_mtime;
 }
 
 function cheesecake_get_active_theme_state_hash() {
     $settings = wp_get_global_settings();
-    $styles   = wp_get_global_styles();
+    $styles = wp_get_global_styles();
+    $custom_css = wp_get_custom_css();
 
-    $user_style_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme() );
-    $user_customizations = ! empty( $user_style_post ) ? $user_style_post->post_content : '';
+    $theme = wp_get_theme();
 
-    $synced_patterns = cheesecake_get_synced_patterns_fingerprint_data();
+    $stylesheet_dir = $theme->get_stylesheet_directory();
+    $theme_files_mtime = cheesecake_get_files_mtime( [
+        $stylesheet_dir . '/theme.json',
+        $stylesheet_dir . '/style.css',
+    ] );
+
+    $user_style_post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( $theme );
+    $user_customizations = ! empty( $user_style_post ) ? $user_style_post['post_content'] : '';
+
+    $theme_cpts = cheesecake_get_cpts_fingerprint_data( [
+        'wp_block',
+        'wp_template_part',
+        'wp_template',
+        'wp_font_face',
+        'wp_font_family',
+    ] );
 
     $state = [
         'settings'          => $settings,
         'styles'            => $styles,
+        'custom_css'        => $custom_css,
         'user_customizer'   => $user_customizations,
         'active_stylesheet' => get_stylesheet(),
-        'synced_patterns'   => $synced_patterns,
+        'theme_cpts'        => $theme_cpts,
+        'theme_files'       => $theme_files_mtime
     ];
 
     return md5( json_encode( $state ) );
