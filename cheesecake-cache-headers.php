@@ -36,20 +36,16 @@ add_action('wp', function() {
 });
 
 function cheesecake_get_current_state_hash() {
-    $content_mod_date  = (int)get_post_modified_time();
-    $last_comment_date = cheesecake_get_date_of_last_comment();
+    $state = [
+        'content'      => (int)get_post_modified_time(),
+        'last_comment' => cheesecake_get_date_of_last_comment(),
+        'theme_state'  => cheesecake_get_active_theme_state(),
+        'plugin_state' => cheesecake_get_cached_plugin_hash(),
+        'menu_state'   => cheesecake_get_menu_state(),
+        'core_version' => $GLOBALS['wp_version'],
+    ];
 
-    $theme_hash = cheesecake_get_active_theme_state_hash();
-
-    $plugin_hash = cheesecake_get_cached_plugin_hash();
-
-    $menu_hash = cheesecake_get_menu_state_hash();
-
-    $state_string = "{$content_mod_date}_{$last_comment_date}_{$theme_hash}_{$plugin_hash}_{$menu_hash}";
-
-    // header('X-Etag-Debug: '. $state_string);
-
-    return md5( $state_string );
+    return md5( serialize( $state ) );
 }
 
 function cheesecake_get_date_of_last_comment() {
@@ -176,10 +172,10 @@ function cheesecake_get_active_theme_state() {
         'theme_files'       => $theme_files_mtime
     ];
 
-    return md5( json_encode( $state ) );
+    return $state;
 }
 
-function cheesecake_get_menu_state_hash() {
+function cheesecake_get_menu_state() {
     $classic_menus = wp_get_nav_menus();
     $block_menus   = get_posts( array( 'post_type' => 'wp_navigation', 'post_status' => 'publish' ) );
 
@@ -193,7 +189,7 @@ function cheesecake_get_menu_state_hash() {
         $menu_string .= 'block' . $nav->ID . $nav->post_modified_gmt;
     }
 
-    return md5( $menu_string );
+    return $menu_string;
 }
 
 add_action( 'update_option_active_plugins', 'cheesecake_clear_plugin_hash_cache' );
