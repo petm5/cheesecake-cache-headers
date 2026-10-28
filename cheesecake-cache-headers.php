@@ -22,7 +22,7 @@ add_action('wp', function() {
 
     header('Cache-Control: max-age=60');
 
-    if (!is_singular()) {
+    if ( !is_singular() || post_password_required() ) {
         return;
     }
 
