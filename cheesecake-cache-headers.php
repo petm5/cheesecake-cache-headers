@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name:  Cache Optimization
-Description:  Enables post and page content caching in browsers using Cache-Control and ETag headers.
-Version:      0.4
+Description:  Enables post and page content caching in browsers and CDNs.
+Version:      0.5
 Author:       Peter Marshall
 Author URI:   https://petermarshall.ca
 License:      GPL2
